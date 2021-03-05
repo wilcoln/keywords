@@ -14,8 +14,9 @@ setuptools.setup(
     url="https://github.com/wilcoln/keywords",
     packages=setuptools.find_packages(),
     install_requires=[
-          'pandas',
-          'yake',
+        'pandas',
+        'yake',
+        'spacy',
       ],
     classifiers=[
         "Programming Language :: Python :: 3",
