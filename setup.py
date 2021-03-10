@@ -25,6 +25,7 @@ setuptools.setup(
         'nltk',
         'keybert',
         'google-cloud-language',
+        'pke @ git+https://github.com/boudinfl/pke.git',
 
       ],
     classifiers=[
