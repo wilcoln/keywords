@@ -17,6 +17,15 @@ setuptools.setup(
         'pandas',
         'yake',
         'spacy',
+        'scikit-learn',
+        'sentence_transformers',
+        'summa',
+        'rake-nltk',
+        'gensim',
+        'nltk',
+        'keybert',
+        'google-cloud-language',
+
       ],
     classifiers=[
         "Programming Language :: Python :: 3",

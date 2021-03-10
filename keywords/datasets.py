@@ -8,15 +8,17 @@ import pandas as pd
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DOWNLOAD_DIR = os.path.join(BASE_DIR, 'download')
 
+
 def table():
     return pd.read_csv(io.StringIO(DATASETS))
+
 
 def download(dataset):
     
     # Create download dir if not exists
     try:
         os.stat(DOWNLOAD_DIR)
-    except:
+    except FileNotFoundError:
         os.mkdir(DOWNLOAD_DIR) 
     
     # Download zip file
@@ -49,38 +51,39 @@ def load(dataset=None, corpora=None):
     try:
         with open(f'{dataset_path}/lan.txt', 'r') as file:
             data['lang']['code'] = file.read()
-    except:
+    except FileNotFoundError:
         pass
        
     try:
         with open(f'{dataset_path}/language.txt', 'r') as file:
-            data['lang']['name'] = file.read()  
-    except:
+            data['lang']['name'] = file.read()
+    except FileNotFoundError:
         pass
         
     # Load info
     try:
         with open(f'{dataset_path}/README.txt', 'r') as file:
             data['info'] = file.read()
-        
-    except:
-          pass
+
+    except FileNotFoundError:
+        pass
 
     try:
         with open(f'{dataset_path}/README', 'r') as file:
             data['info'] = file.read()
-        
-    except:
-          pass
+
+    except FileNotFoundError:
+        pass
             
     # Load corpora
-    filenames = os.listdir(f'{dataset_path}/docsutf8')
-    corpora_ids = list(map(_remove_extension, filenames))
+    if not corpora:
+        filenames = os.listdir(f'{dataset_path}/docsutf8')
+        corpora = list(map(_remove_extension, filenames))
+
     data['corpora'] = []
     
-    for corpus_id in corpora_ids:
-        corpus = {}
-        corpus['id'] = corpus_id
+    for corpus_id in corpora:
+        corpus = {'id': corpus_id}
 
         try:
             with open(f'{dataset_path}/docsutf8/{corpus_id}.txt', 'r') as file:
@@ -90,10 +93,11 @@ def load(dataset=None, corpora=None):
                 corpus['keywords'] = file.read().split('\n')
                 
             data['corpora'].append(corpus)
-        except:
+        except FileNotFoundError:
             pass
     
     return data
+
 
 def _remove_extension(filename):
     return os.path.splitext(filename)[0]
@@ -103,9 +107,8 @@ def _url_of(dataset):
     return f'https://github.com/wilcoln/KeywordExtractor-Datasets/raw/master/datasets/{dataset}.zip'
 
 
-
 DATASETS = """
-Dataset,Language,Type of Doc,Domain,#Docs,#Gold Keys (per doc),#Tokens per doc,Absent GoldKey
+Dataset,Language,Type of Doc,Domain,#Corpora,#Gold Keys (per corpus),#Tokens per corpus,Absent GoldKey
 110-PT-BN-KP,PT,News,Misc.,110,2610 (23.73),304.00,2.5%
 500N-KPCrowd-v1.1,EN,News,Misc.,500,24459 (48.92),408.33,13.5%
 Inspec,EN,Abstract,Comp. Science,2000,29230 (14.62),128.20,37.7%
@@ -126,4 +129,4 @@ theses100,EN,Msc/Phd Thesis,Misc.,100,767 (7.67),4728.86,47.6%
 wicc,ES,Paper,Comp. Science,1640,7498 (4.57),1955.56,2.7%
 wiki20,EN,Research Report,Comp. Science,20,730 (36.50),6177.65,51.8%
 www,EN,Paper,Comp. Science,1330,7711 (5.80),84.08,55.0%
-""" 
+"""
