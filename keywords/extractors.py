@@ -61,7 +61,8 @@ class TfIdfExtractor(KeywordExtractor):
 
     @staticmethod
     def extract(corpus, top, **kwargs) -> list:
-        stop_words = set(stopwords.words("english"))
+        language = kwargs.get('language', 'english')
+        stop_words = set(stopwords.words(language))
         cv = CountVectorizer(max_df=0.8,  # set up the document frequency threshold
                              stop_words=stop_words,
                              max_features=10000,
