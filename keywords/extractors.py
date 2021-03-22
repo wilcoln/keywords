@@ -159,10 +159,6 @@ class YakeExtractor(TwoStepKeywordExtractor):
 
 
 class TfIdfExtractor(TwoStepKeywordExtractor):
-    # order the collected keywords by score
-    def sent_keyword_selection(self, sent_keyword, n_keywords):
-        tmp = sorted(sent_keyword, key=lambda e: e['score'])[:n_keywords]
-        return tmp
 
     # Function for sorting tf_idf in descending order
     @staticmethod
