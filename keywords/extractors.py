@@ -12,7 +12,6 @@ nltk.download('universal_tagset')
 
 
 class KeywordExtractor(object):
-    __name__ = "keyword extraction algorithm name"
 
     def __init__(self):
         self.kw_extractor = None
@@ -133,7 +132,6 @@ class TwoStepKeywordExtractor(KeywordExtractor):
 
 
 class YakeExtractor(TwoStepKeywordExtractor):
-    __name__ = 'Yake'
 
     # order the collected keywords by score
     def sent_keyword_selection(self, sent_keyword, n_keywords):
