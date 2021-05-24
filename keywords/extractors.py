@@ -1,33 +1,27 @@
 from typing import List
 import yake
-import nltk
 from nltk.corpus import stopwords
 from keybert import KeyBERT
 from sklearn.feature_extraction.text import TfidfTransformer, CountVectorizer
 from rake_nltk import Rake
 import pke
-
-nltk.download('stopwords')
-nltk.download('universal_tagset')
+from google.cloud import language_v1
 
 
 class KeywordExtractor(object):
 
-    def __init__(self):
-        self.kw_extractor = None
-
     def train(self, documents: List[str], **kwargs):
-        """Unsupervised train the keyword extractor on a list of documents
+        """Unsupervised training of the keyword extractor on a list of documents
 
         Arguments:
             documents {List[str]} -- [description]
         """
         pass
 
-    def predict(self, text: str, topn: int = 10) -> List[dict]:
-        """Given a text, return a ranking list of keywords
+    def predict(self, document: str, top: int = 10) -> List[dict]:
+        """Given a document, return a ranking list of keywords
         Example:
-        Input: text = "what is machine learning and what is the difference between deep learning and neural networks"
+        Input: document = "what is machine learning and what is the difference between deep learning and neural networks"
         Output: [
             {
                 "keyword": "machine learning",
@@ -41,71 +35,68 @@ class KeywordExtractor(object):
         ]
 
         Arguments:
-            text {str} -- the input text
+            document {str} -- the input document
 
         Returns:
             List[dict] -- list of keywords
         """
         pass
 
-    def batch_predict(
-            self,
-            texts: List[str],
-            topn: int = 100
-    ) -> List[List[dict]]:
-        """Same as predict but for batch of texts instead of a single text
+    def batch_predict(self, documents: List[str], top: int = 100) -> List[List[dict]]:
+        """Same as predict but for batch of documents instead of a single document
 
         Arguments:
-            texts {List[str]} -- [description]
+            documents {List[str]} -- [description]
 
         Keyword Arguments:
-            topn {int} -- [description] (default: {100})
+            top {int} -- [description] (default: {100})
 
         Returns:
             List[List[dict]] -- [description]
         """
 
-        return [self.predict(text, topn) for text in texts]
+        return [self.predict(document, top) for document in documents]
 
 
 class TwoStepKeywordExtractor(KeywordExtractor):
 
-    def __init__(self, n_gram, total_keywords_in_training, documents):
+    def __init__(self, n_gram, keywords_index_size, documents):
         self.n_gram = n_gram
-        self.total_keywords_in_training = total_keywords_in_training
-        self.the_total_keywords = []
+        self.keywords_index_size = keywords_index_size
+        self.keywords_index = []
         self.train(documents)
 
-    # order the collected keywords by score
-    def sent_keyword_selection(self, sent_keyword, n_keywords):
-        tmp = sorted(sent_keyword, key=lambda e: e['score'], reverse=True)[:n_keywords]
+    @staticmethod
+    def document_keywords_selection(document_keywords, top):
+        """
+        order the collected keywords by score.
+
+        :param document_keywords:
+        :param top:
+        :return:
+        """
+        tmp = sorted(document_keywords, key=lambda e: e['score'], reverse=True)[:top]
         return tmp
 
-    # check the present of keywords in sentence by the ratio of matching >90% of the current keyword (if pharse break into list of words)
-    def match_keyword_in_sent_v2(self, KW, ST):
-        sentence_keywords = []
-        tmpdict = {}
-        for keys in KW:
-            tmpdict[keys[0]] = [keys[0].split(), keys[-1]]  # [ ['a','b','c'],0.5]
-        tmp_KW = ''
-        for sub_keys, sub_words in tmpdict.items():
-            count1 = 0
-            count2 = 0
-            for tmp_words in sub_words[0]:
-                if tmp_words in ST:
-                    count1 += 1
-                if tmp_words in tmp_KW:
-                    count2 += 1
-            if count1 / len(tmpdict[sub_keys][0]) >= 0.90 and count2 / len(tmpdict[sub_keys][0]) < 0.9:
-                sentence_keywords.append({'keyword': sub_keys, 'score': sub_words[1]})
-                tmp_KW = tmp_KW + ' ' + sub_keys
-        return sentence_keywords
+    def match_keywords_in_document(self, document):
+        """
+        check the present of keywords in document by the ratio of matching >90% of the current keyword
+        (if document break into list of words)
+        :param document:
+        :return:
+        """
+
+        return [
+            {'keyword': kw, 'score': score}
+            for kw, score in self.keywords_index
+            if len(set(kw.split()) & set(document.split())) / len(kw.split()) >= 0.90
+        ]
 
     # general processing function for all of the steps show up before
-    def predict(self, text: str, topn: int = 10) -> List[dict]:
-        """Given a text, return a ranking list of keywords
+    def predict(self, document: str, top: int = 10) -> List[dict]:
+        """Given a document, return a ranking list of keywords
                Example:
-               Input: text = "what is machine learning and what is the difference between deep learning and neural networks"
+               Input: document = "what is machine learning and what is the difference between deep learning and neural networks"
                Output: [
                    {
                        "keyword": "machine learning",
@@ -119,43 +110,38 @@ class TwoStepKeywordExtractor(KeywordExtractor):
                ]
 
                Arguments:
-                   text {str} -- the input text
+                   document {str} -- the input document
 
                Returns:
                    List[dict] -- list of keywords
                """
 
-        sent_key_collection = self.match_keyword_in_sent_v2(self.the_total_keywords, text)
-        tmp_final_collection = self.sent_keyword_selection(sent_key_collection, topn)
-
-        return tmp_final_collection
+        document_keywords = self.match_keywords_in_document(document)
+        return self.document_keywords_selection(document_keywords, top)
 
 
 class YakeExtractor(TwoStepKeywordExtractor):
 
     # order the collected keywords by score
-    def sent_keyword_selection(self, sent_keyword, n_keywords):
-        tmp = sorted(sent_keyword, key=lambda e: e['score'], reverse=False)[:n_keywords]
-        return tmp
+    def document_keywords_selection(self, document_keywords, top):
+        return sorted(document_keywords, key=lambda e: e['score'], reverse=False)[:top]
 
     def train(self, documents, **kwargs):
         """Unsupervised train the keyword extractor on a list of documents
         Arguments:
             documents {List[str]} -- [description]
         """
-
-        total_data = ' '.join(documents)
         language = kwargs.get('language', 'en')
         max_ngram_size = self.n_gram
         deduplication_thresold = 0.4
         deduplication_algo = 'seqm'
         windowSize = 1
-        numOfKeywords = self.total_keywords_in_training
+        numOfKeywords = self.keywords_index_size
 
         custom_kw_extractor = yake.KeywordExtractor(lan=language, n=max_ngram_size, dedupLim=deduplication_thresold,
                                                     dedupFunc=deduplication_algo, windowsSize=windowSize,
                                                     top=numOfKeywords, features=None)
-        self.the_total_keywords = custom_kw_extractor.extract_keywords(total_data)
+        self.keywords_index = custom_kw_extractor.extract_keywords('\n'.join(documents))
 
 
 class TfIdfExtractor(TwoStepKeywordExtractor):
@@ -167,11 +153,11 @@ class TfIdfExtractor(TwoStepKeywordExtractor):
         return sorted(tuples, key=lambda x: (x[1], x[0]), reverse=True)
 
     @staticmethod
-    def extract_topn_from_vector(feature_names, sorted_items, topn=10):
+    def extract_top_from_vector(feature_names, sorted_items, top=10):
         """get the feature names and tf-idf score of top n items"""
 
-        # use only topn items from vector
-        sorted_items = sorted_items[:topn]
+        # use only top items from vector
+        sorted_items = sorted_items[:top]
 
         score_vals = []
         feature_vals = []
@@ -191,7 +177,7 @@ class TfIdfExtractor(TwoStepKeywordExtractor):
         return results
 
     def train(self, documents, **kwargs):
-        corpus = ' '.join(documents)
+        corpus = '\n'.join(documents)
         language = kwargs.get('language', 'english')
         stop_words = set(stopwords.words(language))
         cv = CountVectorizer(max_df=0.8,  # set up the document frequency threshold
@@ -207,79 +193,79 @@ class TfIdfExtractor(TwoStepKeywordExtractor):
         sorted_items = TfIdfExtractor.sort_coo(tf_idf_vector.tocoo())
 
         feature_names = cv.get_feature_names()
-        self.the_total_keywords = [(k, v) for k, v in TfIdfExtractor.extract_topn_from_vector(
+        self.keywords_index = [(k, v) for k, v in TfIdfExtractor.extract_top_from_vector(
             feature_names,
             sorted_items,
-            self.total_keywords_in_training,
+            self.keywords_index_size,
         ).items()]
 
 
 class TextRankExtractor(TwoStepKeywordExtractor):
     def train(self, documents, **kwargs):
-        self.the_total_keywords = extract_with_pke(
+        self.keywords_index = extract_with_pke(
             extractor=pke.unsupervised.TextRank(),
-            corpus=' '.join(documents),
-            top=self.total_keywords_in_training,
+            corpus='\n'.join(documents),
+            top=self.keywords_index_size,
             **kwargs,
         )
 
 
 class SingleRankExtractor(TwoStepKeywordExtractor):
     def train(self, documents, **kwargs):
-        self.the_total_keywords = extract_with_pke(
+        self.keywords_index = extract_with_pke(
             extractor=pke.unsupervised.SingleRank(),
-            corpus=' '.join(documents),
-            top=self.total_keywords_in_training,
+            corpus='\n'.join(documents),
+            top=self.keywords_index_size,
             **kwargs,
         )
 
 
 class TopicalPageRankExtractor(TwoStepKeywordExtractor):
     def train(self, documents, **kwargs):
-        self.the_total_keywords = extract_with_pke(
+        self.keywords_index = extract_with_pke(
             extractor=pke.unsupervised.SingleRank(),
-            corpus=' '.join(documents),
-            top=self.total_keywords_in_training,
+            corpus='\n'.join(documents),
+            top=self.keywords_index_size,
             **kwargs,
         )
 
 
 class TopicRankExtractor(TwoStepKeywordExtractor):
     def train(self, documents, **kwargs):
-        self.the_total_keywords = extract_with_pke(
+        self.keywords_index = extract_with_pke(
             extractor=pke.unsupervised.TopicRank(),
-            corpus=' '.join(documents),
-            top=self.total_keywords_in_training,
+            corpus='\n'.join(documents),
+            top=self.keywords_index_size,
             **kwargs,
         )
 
 
 class PositionRankExtractor(TwoStepKeywordExtractor):
     def train(self, documents, **kwargs):
-        self.the_total_keywords = extract_with_pke(
+        self.keywords_index = extract_with_pke(
             extractor=pke.unsupervised.PositionRank(),
-            corpus=' '.join(documents),
-            top=self.total_keywords_in_training,
+            corpus='\n'.join(documents),
+            top=self.keywords_index_size,
             **kwargs,
         )
 
 
 class MultipartiteRankExtractor(TwoStepKeywordExtractor):
     def train(self, documents, **kwargs):
-        self.the_total_keywords = extract_with_pke(
+        self.keywords_index = extract_with_pke(
             extractor=pke.unsupervised.MultipartiteRank(),
-            corpus=' '.join(documents),
-            top=self.total_keywords_in_training,
+            corpus='\n'.join(documents),
+            top=self.keywords_index_size,
             **kwargs,
         )
 
 
 class KPMinerExtractor(TwoStepKeywordExtractor):
     def train(self, documents, **kwargs):
-        self.the_total_keywords = extract_with_pke(
+        self.keywords_index = extract_with_pke(
             extractor=pke.unsupervised.KPMiner(),
-            corpus=' '.join(documents),
-            top=self.total_keywords_in_training,
+            corpus='\n'.join(documents),
+            top=self.keywords_index_size,
             **kwargs,
         )
 
@@ -288,14 +274,15 @@ class KeyBertExtractor(TwoStepKeywordExtractor):
     def train(self, documents, **kwargs):
         extractor = KeyBERT('distilbert-base-nli-mean-tokens')
         stop_words = kwargs.get('stop_words', 'english')
-        self.the_total_keywords = extractor.extract_keywords(' '.join(documents),  stop_words=stop_words)[:self.total_keywords_in_training]
+        self.keywords_index = extractor.extract_keywords('\n'.join(documents),  stop_words=stop_words)[:self.keywords_index_size]
 
 
 class RakeExtractor(TwoStepKeywordExtractor):
     def train(self, documents, **kwargs):
         r = Rake(**kwargs)  # Uses stopwords for english from NLTK, and all puntuation characters.
-        r.extract_keywords_from_text(' '.join(documents))
-        self.the_total_keywords = [(v, k) for k, v in r.get_ranked_phrases_with_scores()][:self.total_keywords_in_training]  # To get keyword phrases ranked highest to lowest.
+        r.extract_keywords_from_text('\n'.join(documents))
+        self.keywords_index = [(v, k) for k, v in r.get_ranked_phrases_with_scores()][:self.keywords_index_size]
+        # To get keyword phrases ranked highest to lowest.
 
 
 def extract_with_pke(extractor, corpus, top, **kwargs) -> list:
@@ -317,3 +304,16 @@ def extract_with_pke(extractor, corpus, top, **kwargs) -> list:
     # (keyphrase, score) tuples
     return extractor.get_n_best(n=top)
 
+
+class GoogleCloudExtractor(KeywordExtractor):
+    def predict(self, document: str, top: int = 10) -> List[str]:
+        # Instantiates a client
+        client = language_v1.LanguageServiceClient()
+
+        document = language_v1.Document(content=document, type_=language_v1.Document.Type.PLAIN_TEXT)
+        entities = client.analyze_entities(request={'document': document}).entities
+        # TODO extract keyword list from entities
+        return entities[:top]
+        #GOOGLE_APPLICATION_CREDENTIALS
+        #jobs.ai.institute@gmail.com /
+        #!Lxk?d@$J4zH6jby

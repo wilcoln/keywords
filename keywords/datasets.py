@@ -37,7 +37,7 @@ def download(dataset):
     os.remove(dataset_zip_path)
     
 
-def load(dataset=None, corpora=None):
+def load(dataset=None, documents=None):
     data = defaultdict()
 
     dataset_path = os.path.join(DOWNLOAD_DIR, dataset)
@@ -75,24 +75,24 @@ def load(dataset=None, corpora=None):
     except FileNotFoundError:
         pass
             
-    # Load corpora
-    if not corpora:
+    # Load documents
+    if not documents:
         filenames = os.listdir(f'{dataset_path}/docsutf8')
-        corpora = list(map(_remove_extension, filenames))
+        documents = list(map(_remove_extension, filenames))
 
-    data['corpora'] = []
+    data['documents'] = []
     
-    for corpus_id in corpora:
-        corpus = {'id': corpus_id}
+    for document_id in documents:
+        document = {'id': document_id}
 
         try:
-            with open(f'{dataset_path}/docsutf8/{corpus_id}.txt', 'r') as file:
-                corpus['text'] = file.read()
+            with open(f'{dataset_path}/docsutf8/{document_id}.txt', 'r') as file:
+                document['text'] = file.read()
                 
-            with open(f'{dataset_path}/keys/{corpus_id}.key', 'r') as file:
-                corpus['keywords'] = file.read().split('\n')
+            with open(f'{dataset_path}/keys/{document_id}.key', 'r') as file:
+                document['keywords'] = file.read().split('\n')
                 
-            data['corpora'].append(corpus)
+            data['documents'].append(document)
         except FileNotFoundError:
             pass
     
@@ -108,7 +108,7 @@ def _url_of(dataset):
 
 
 DATASETS = """
-Dataset,Language,Type of Doc,Domain,#Corpora,#Gold Keys (per corpus),#Tokens per corpus,Absent GoldKey
+Dataset,Language,Type of Doc,Domain,#Documents,#Gold Keys (per doc),#Tokens per doc,Absent GoldKey
 110-PT-BN-KP,PT,News,Misc.,110,2610 (23.73),304.00,2.5%
 500N-KPCrowd-v1.1,EN,News,Misc.,500,24459 (48.92),408.33,13.5%
 Inspec,EN,Abstract,Comp. Science,2000,29230 (14.62),128.20,37.7%

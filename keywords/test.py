@@ -1,27 +1,26 @@
-from keywords import datasets, extractors
+from keywords import datasets, extractors, evaluation
 
 
-dataset = datasets.load('500N-KPCrowd-v1.1')
-corpora = dataset['corpora']
+evaluation.visual_bench(dataset='500N-KPCrowd-v1.1', num_docs=2, k=20)
 
-training = [corpus for corpus in corpora[:1]]
-
-test_extractors = [
-    # Unsupervised
-    extractors.YakeExtractor,
-    extractors.TextRankExtractor,
-    extractors.KPMinerExtractor,
-    extractors.TfIdfExtractor,
-    extractors.RakeExtractor,
-    extractors.TopicRankExtractor,
-    extractors.SingleRankExtractor,
-    extractors.PositionRankExtractor,
-    extractors.MultipartiteRankExtractor,
-    extractors.KeyBertExtractor,
-]
-
-for extractor in test_extractors:
-    print(extractor)
-    model = extractor(n_gram=4, total_keywords_in_training=300, documents=[corpus['text'] for corpus in training])
-    print(model.predict(text=training[0]['text'], topn=10))
+# dataset = datasets.load('500N-KPCrowd-v1.1')
+# documents = dataset['documents']
+# test_extractors = [
+#     # Unsupervised
+#     extractors.YakeExtractor,
+#     extractors.TextRankExtractor,
+#     extractors.KPMinerExtractor,
+#     extractors.TfIdfExtractor,
+#     extractors.RakeExtractor,
+#     extractors.TopicRankExtractor,s
+#     extractors.SingleRankExtractor,
+#     extractors.PositionRankExtractor,
+#     extractors.MultipartiteRankExtractor,
+#     extractors.KeyBertExtractor,
+# ]
+#
+# for extractor in test_extractors:
+#     model = extractor(n_gram=4, keywords_index_size=300, documents=[documents[0]['text']])
+#     print(model)
+#     print(model.predict(document=documents[0]['text'], top=10))
 
