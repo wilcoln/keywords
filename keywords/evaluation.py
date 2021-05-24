@@ -1,4 +1,3 @@
-from random import random
 from typing import List
 
 import numpy as np
@@ -6,7 +5,6 @@ import pandas as pd
 
 import plotly.express as px
 
-import random
 from keywords import datasets, extractors
 
 
@@ -16,7 +14,7 @@ def get_cleaned_documents(dataset: str, num_docs: int = None):
     This function will fetch the data based on the name of the dataset. It will:
        1. load the dataset
        2. get rid of records in which # of keywords > # of words in the original text
-       3. randomly sample numbers of documents to use, based on 2nd parameter: num
+       3. get a numbers of documents to use, based on 2nd parameter: num
 
         Args:
            - dataset: The name of the data to load
@@ -35,10 +33,10 @@ def get_cleaned_documents(dataset: str, num_docs: int = None):
         if len(document['text'].split()) > len(document['keywords']) + 30
     ]
 
-    return random.sample(documents, num_docs) if num_docs else documents
+    return documents[:num_docs]
 
 
-def get_output(documents: List[str], document: str, top: int = None):
+def get_output(document: str, top: int = None):
     """
     This function will initialize all algorithms,
     and output the results from them. It then wrap
@@ -51,14 +49,7 @@ def get_output(documents: List[str], document: str, top: int = None):
 
     return {
         extractor: [
-            item[0] for item in [
-                (item['keyword'], item['score'])
-                for item in extractor(
-                    n_gram=4,
-                    keywords_index_size=300,
-                    documents=documents,
-                ).predict(document=document, top=top)
-            ]
+            keyword for keyword, _ in extractor().extract_keywords(document=document, top=top)
         ]
         for extractor in [
             extractors.YakeExtractor,
@@ -157,7 +148,6 @@ def visual_bench(dataset: str, num_docs: int, k: int = None):
     documents = get_cleaned_documents(dataset, num_docs)
     doc_output_list = [
         get_output(
-            documents=[doc['text'] for doc in documents],
             document=doc['text'],
             top=k if k is not None else len(doc['keywords']),
         ) for doc in documents

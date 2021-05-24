@@ -20,7 +20,7 @@ evaluation.visual_bench(dataset='500N-KPCrowd-v1.1', num_docs=2, k=20)
 # ]
 #
 # for extractor in test_extractors:
-#     model = extractor(n_gram=4, keywords_index_size=300, documents=[documents[0]['text']])
+#     model = extractor(n_gram=4, keyword_index_size=300, documents=[documents[0]['text']])
 #     print(model)
 #     print(model.predict(document=documents[0]['text'], top=10))
 
