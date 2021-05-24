@@ -12,4 +12,4 @@ __pycache__/
 *~
 publish.sh
 keywords/download/
-.ipynb_checkpoints
+.ipynb_checkpoints/
