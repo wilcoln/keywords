@@ -49,7 +49,7 @@ def get_output(document: str, top: int = None):
 
     return {
         extractor: [
-            keyword for keyword, _ in extractor().extract_keywords(document=document, top=top)
+            keyword for keyword, _ in extractor().get_n_best(document=document, n=top)
         ]
         for extractor in [
             extractors.YakeExtractor,

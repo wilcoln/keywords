@@ -8,15 +8,12 @@ import pke
 
 class KeywordExtractor(object):
 
-    def __init__(self, keyword_index: List[str] = None):
-        """
-
-        :param keyword_index: list of known keywords
-        """
-        self.keyword_index = keyword_index
+    def __init__(self,  document: str, **kwargs):
         self._keyword_score_list = None
+        self._document = document
+        self.set_keyword_score_list(**kwargs)
 
-    def filter_keywords_with_index(self):
+    def filter_keywords_with_index(self, index):
         """
         check the present of keywords in index by the ratio of matching > 90% of the current keyword
         (if document break into list of words)
@@ -25,10 +22,10 @@ class KeywordExtractor(object):
         return [
             (keyword, score)
             for keyword, score in self._keyword_score_list
-            if any(fuzzy_match(keyword, indexed_keyword) for indexed_keyword in self.keyword_index)
+            if any(fuzzy_match(keyword, indexed_keyword) for indexed_keyword in index)
         ]
 
-    def extract_keywords(self, document: str, top: int = 10) -> List[Tuple[str, float]]:
+    def get_n_best(self, n: int = 10, index: List[str] = None) -> List[Tuple[str, float]]:
         """Given a document, return a ranking list of keywords
                Arguments:
                    document {str} -- the input document
@@ -36,117 +33,120 @@ class KeywordExtractor(object):
                Returns:
                    List[dict] -- list of keywords
         """
-        self.set_keyword_score_list(document)
+        if index is not None:
+            self._keyword_score_list = self.filter_keywords_with_index(index)
 
-        if self.keyword_index is not None:
-            self._keyword_score_list = self.filter_keywords_with_index()
+        return self._keyword_score_list[:n]
 
-        return self._keyword_score_list[:top]
-
-    def set_keyword_score_list(self, document):
+    def set_keyword_score_list(self, **kwargs):
         pass
 
 
 class YakeExtractor(KeywordExtractor):
-    def set_keyword_score_list(self, document, **kwargs):
-        language = kwargs.get('language', 'en')
-        max_ngram_size = 3
-        deduplication_thresold = 0.4
-        deduplication_algo = 'seqm'
-        windowSize = 1
-        numOfKeywords = len(document)
-        custom_kw_extractor = yake.KeywordExtractor(
-            lan=language, n=max_ngram_size, dedupLim=deduplication_thresold,
-            dedupFunc=deduplication_algo, windowsSize=windowSize,
-            top=numOfKeywords, features=None
+    def set_keyword_score_list(self, **kwargs):
+        # language = kwargs.get('language', 'en')
+        # max_ngram_size = 3
+        # deduplication_thresold = 0.4
+        # deduplication_algo = 'seqm'
+        # windowSize = 1
+        # numOfKeywords = len(self._document)
+        # custom_kw_extractor = yake.KeywordExtractor(
+        #     lan=language, n=max_ngram_size, dedupLim=deduplication_thresold,
+        #     dedupFunc=deduplication_algo, windowsSize=windowSize,
+        #     top=numOfKeywords, features=None
+        # )
+        # self._keyword_score_list = custom_kw_extractor.extract_keywords(self._document)
+        self._keyword_score_list = extract_with_pke(
+            model=pke.unsupervised.YAKE(),
+            corpus=self._document,
+            **kwargs,
         )
-        self._keyword_score_list = custom_kw_extractor.extract_keywords(document)
 
 
 class TfIdfExtractor(KeywordExtractor):
-    def set_keyword_score_list(self, document, **kwargs):
+    def set_keyword_score_list(self, **kwargs):
         self._keyword_score_list = extract_with_pke(
             model=pke.unsupervised.TfIdf(),
-            corpus=document,
+            corpus=self._document,
             **kwargs,
         )
 
 
 class TextRankExtractor(KeywordExtractor):
-    def set_keyword_score_list(self, document, **kwargs):
+    def set_keyword_score_list(self, **kwargs):
         self._keyword_score_list = extract_with_pke(
             model=pke.unsupervised.TextRank(),
-            corpus=document,
+            corpus=self._document,
             **kwargs,
         )
 
 
 class SingleRankExtractor(KeywordExtractor):
-    def set_keyword_score_list(self, document, **kwargs):
+    def set_keyword_score_list(self, **kwargs):
         self._keyword_score_list = extract_with_pke(
             model=pke.unsupervised.SingleRank(),
-            corpus=document,
+            corpus=self._document,
             **kwargs,
         )
 
 
 class TopicalPageRankExtractor(KeywordExtractor):
-    def set_keyword_score_list(self, document, **kwargs):
+    def set_keyword_score_list(self, **kwargs):
         self._keyword_score_list = extract_with_pke(
             model=pke.unsupervised.SingleRank(),
-            corpus=document,
+            corpus=self._document,
             **kwargs,
         )
 
 
 class TopicRankExtractor(KeywordExtractor):
-    def set_keyword_score_list(self, document, **kwargs):
+    def set_keyword_score_list(self, **kwargs):
         self._keyword_score_list = extract_with_pke(
             model=pke.unsupervised.TopicRank(),
-            corpus=document,
+            corpus=self._document,
             **kwargs,
         )
 
 
 class PositionRankExtractor(KeywordExtractor):
-    def set_keyword_score_list(self, document, **kwargs):
+    def set_keyword_score_list(self, **kwargs):
         self._keyword_score_list = extract_with_pke(
             model=pke.unsupervised.PositionRank(),
-            corpus=document,
+            corpus=self._document,
             **kwargs,
         )
 
 
 class MultipartiteRankExtractor(KeywordExtractor):
-    def set_keyword_score_list(self, document, **kwargs):
+    def set_keyword_score_list(self, **kwargs):
         self._keyword_score_list = extract_with_pke(
             model=pke.unsupervised.MultipartiteRank(),
-            corpus=document,
+            corpus=self._document,
             **kwargs,
         )
 
 
 class KPMinerExtractor(KeywordExtractor):
-    def set_keyword_score_list(self, document, **kwargs):
+    def set_keyword_score_list(self, **kwargs):
         self._keyword_score_list = extract_with_pke(
             model=pke.unsupervised.KPMiner(),
-            corpus=document,
+            corpus=self._document,
             **kwargs,
         )
 
 
 class KeyBertExtractor(KeywordExtractor):
-    def set_keyword_score_list(self, document, **kwargs):
+    def set_keyword_score_list(self, **kwargs):
         extractor = KeyBERT('distilbert-base-nli-mean-tokens')
         stop_words = kwargs.get('stop_words', 'english')
-        self._keyword_score_list = extractor.extract_keywords(document,  stop_words=stop_words)[:len(document)]
+        self._keyword_score_list = extractor.extract_keywords(self._document, keyphrase_ngram_range=(1, 4), stop_words=stop_words)[:len(self._document)]
 
 
 class RakeExtractor(KeywordExtractor):
-    def set_keyword_score_list(self, document, **kwargs):
+    def set_keyword_score_list(self, **kwargs):
         r = Rake(**kwargs)  # Uses stopwords for english from NLTK, and all puntuation characters.
-        r.extract_keywords_from_text(document)
-        self._keyword_score_list = [(v, k) for k, v in r.get_ranked_phrases_with_scores()][:len(document)]
+        r.extract_keywords_from_text(self._document)
+        self._keyword_score_list = [(v, k) for k, v in r.get_ranked_phrases_with_scores()][:len(self._document)]
         # To get keyword phrases ranked highest to lowest.
 
 
